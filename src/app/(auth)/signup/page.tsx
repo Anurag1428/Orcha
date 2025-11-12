@@ -5,9 +5,7 @@ const Page = async () => {
   await requireUnauth();
 
   return (
-    <div>
         <RegisterForm />
-    </div>
   )
 }
 
