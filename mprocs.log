@@ -446,3 +446,5 @@ WARN [mprocs::app] Ignore input event: FocusLost
 WARN [mprocs::app] Ignore input event: FocusGained
 WARN [mprocs::app] Ignore input event: FocusLost
 WARN [mprocs::app] Ignore input event: FocusGained
+WARN [mprocs::app] Ignore input event: FocusLost
+WARN [mprocs::app] Ignore input event: FocusGained
