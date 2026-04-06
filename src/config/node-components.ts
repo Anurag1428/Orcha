@@ -25,4 +25,4 @@ export const nodeComponents = {
   [NodeType.SLACK]: SlackNode,
 } as const satisfies NodeTypes;
 
-export type RegisteredNodeType = keyof typeof nodeComponents;   
+export type RegisteredNodeType = keyof typeof nodeComponents;
