@@ -7,6 +7,10 @@
 
 
 procs:
+  ngrok:
+    cmd: ["cmd", "/c", "npm run ngrok:dev"]
+    cwd: .
+
   next:
     cmd: ["cmd", "/c", "npm run dev"]
     cwd: .
