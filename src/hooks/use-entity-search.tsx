@@ -51,4 +51,4 @@ export function useEntitySearch<T extends {
     searchValue: localSearch,
     onSearchChange: setLocalSearch,
   };
-};      
+};

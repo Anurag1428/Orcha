@@ -1,17 +1,30 @@
 import Handlebars from "handlebars";
 import { NonRetriableError } from "inngest";
+import { generateText } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
 import type { NodeExecutor } from "@/features/executions/types";
 import { openAiChannel } from "@/inngest/channels/openai";
-import OpenAI from "openai";
+import prisma from "@/lib/db";
+import { decrypt } from "@/lib/encryption";
+
+Handlebars.registerHelper("json", (context) => {
+  const jsonString = JSON.stringify(context, null, 2);
+  const safeString = new Handlebars.SafeString(jsonString);
+
+  return safeString;
+});
 
 type OpenAiData = {
   variableName?: string;
-  prompt?: string;
+  credentialId?: string;
+  systemPrompt?: string;
+  userPrompt?: string;
 };
 
 export const openAiExecutor: NodeExecutor<OpenAiData> = async ({
   data,
   nodeId,
+  userId,
   context,
   step,
   publish,
@@ -23,39 +36,85 @@ export const openAiExecutor: NodeExecutor<OpenAiData> = async ({
     }),
   );
 
-  try {
-    const result = await step.run("openai-generation", async () => {
-      if (!data.prompt) {
-        throw new NonRetriableError("OpenAI node: No prompt configured");
-      }
+  if (!data.variableName) {
+    await publish(
+      openAiChannel().status({
+        nodeId,
+        status: "error",
+      })
+    );
+    throw new NonRetriableError("OpenAi node: Variable name is missing");
+  }
 
-      if (!data.variableName) {
-        throw new NonRetriableError("OpenAI node: Variable name not configured");
-      }
+  if (!data.credentialId) {
+    await publish(
+      openAiChannel().status({
+        nodeId,
+        status: "error",
+      }),
+    );
+    throw new NonRetriableError("OpenAi node: Credential is required");
+  }
 
-      const prompt = Handlebars.compile(data.prompt)(context);
+  if (!data.userPrompt) {
+    await publish(
+      openAiChannel().status({
+        nodeId,
+        status: "error",
+      })
+    );
+    throw new NonRetriableError("OpenAi node: User prompt is missing");
+  }
 
-      const openai = new OpenAI({
-        apiKey: process.env.NVIDIA_API_KEY,
-        baseURL: "https://integrate.api.nvidia.com/v1",
-      });
+  const systemPrompt = data.systemPrompt
+    ? Handlebars.compile(data.systemPrompt)(context)
+    : "You are a helpful assistant.";
+  const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-      const completion = await openai.chat.completions.create({
-        model: "moonshotai/kimi-k2-instruct",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.6,
-        top_p: 0.9,
-        max_tokens: 4096,
-      });
-
-      const responseText = completion.choices[0]?.message?.content || "";
-
-      return {
-        ...context,
-        [data.variableName]: responseText,
-      };
+  const credential = await step.run("get-credential", () => {
+    return prisma.credential.findUnique({
+      where: {
+        id: data.credentialId,
+        userId,
+      },
     });
+  });
 
+  if (!credential) {
+    await publish(
+      openAiChannel().status({
+        nodeId,
+        status: "error",
+      })
+    );
+    throw new NonRetriableError("OpenAI node: Credential not found");
+  }
+
+  const openai = createOpenAI({
+    apiKey: decrypt(credential.value),
+  });
+
+  try {
+    const { steps } = await step.ai.wrap(
+      "openai-generate-text",
+      generateText,
+      {
+        model: openai("gpt-4"),
+        system: systemPrompt,
+        prompt: userPrompt,
+        experimental_telemetry: {
+          isEnabled: true,
+          recordInputs: true,
+          recordOutputs: true,
+        },
+      },
+    );
+
+    const text = 
+      steps[0].content[0].type === "text" 
+        ? steps[0].content[0].text
+        : "";
+    
     await publish(
       openAiChannel().status({
         nodeId,
@@ -63,9 +122,14 @@ export const openAiExecutor: NodeExecutor<OpenAiData> = async ({
       }),
     );
 
-    return result;
+    return {
+      ...context,
+      [data.variableName]: {
+        text,
+      },
+    }
   } catch (error) {
-    await publish(
+     await publish(
       openAiChannel().status({
         nodeId,
         status: "error",

@@ -56,20 +56,20 @@ const executionNodes: NodeTypeOption[] = [
   },
   {
     type: NodeType.GEMINI,
-    label: "Gemini (Kimi)",
-    description: "Uses Moonshot Kimi K2 to generate text",
+    label: "Gemini",
+    description: "Uses Google Gemini to generate text",
     icon: "/logos/gemini.svg",
   },
   {
     type: NodeType.OPENAI,
-    label: "OpenAI (Kimi)",
-    description: "Uses Moonshot Kimi K2 to generate text",
+    label: "OpenAI",
+    description: "Uses OpenAI to generate text",
     icon: "/logos/openai.svg",
   },
   {
     type: NodeType.ANTHROPIC,
-    label: "Anthropic (Kimi)",
-    description: "Uses Moonshot Kimi K2 to generate text",
+    label: "Anthropic",
+    description: "Uses Anthropic to generate text",
     icon: "/logos/anthropic.svg",
   },
   {
