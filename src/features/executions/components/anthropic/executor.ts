@@ -1,17 +1,30 @@
 import Handlebars from "handlebars";
 import { NonRetriableError } from "inngest";
+import { generateText } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import type { NodeExecutor } from "@/features/executions/types";
 import { anthropicChannel } from "@/inngest/channels/anthropic";
-import OpenAI from "openai";
+import prisma from "@/lib/db";
+import { decrypt } from "@/lib/encryption";
+
+Handlebars.registerHelper("json", (context) => {
+  const jsonString = JSON.stringify(context, null, 2);
+  const safeString = new Handlebars.SafeString(jsonString);
+
+  return safeString;
+});
 
 type AnthropicData = {
   variableName?: string;
-  prompt?: string;
+  credentialId?: string;
+  systemPrompt?: string;
+  userPrompt?: string;
 };
 
 export const anthropicExecutor: NodeExecutor<AnthropicData> = async ({
   data,
   nodeId,
+  userId,
   context,
   step,
   publish,
@@ -23,39 +36,85 @@ export const anthropicExecutor: NodeExecutor<AnthropicData> = async ({
     }),
   );
 
-  try {
-    const result = await step.run("anthropic-generation", async () => {
-      if (!data.prompt) {
-        throw new NonRetriableError("Anthropic node: No prompt configured");
-      }
+  if (!data.variableName) {
+    await publish(
+      anthropicChannel().status({
+        nodeId,
+        status: "error",
+      })
+    );
+    throw new NonRetriableError("Anthropic node: Variable name is missing");
+  }
 
-      if (!data.variableName) {
-        throw new NonRetriableError("Anthropic node: Variable name not configured");
-      }
+  if (!data.credentialId) {
+    await publish(
+      anthropicChannel().status({
+        nodeId,
+        status: "error",
+      }),
+    );
+    throw new NonRetriableError("Anthropic node: Credential is required");
+  }
 
-      const prompt = Handlebars.compile(data.prompt)(context);
+  if (!data.userPrompt) {
+    await publish(
+      anthropicChannel().status({
+        nodeId,
+        status: "error",
+      })
+    );
+    throw new NonRetriableError("Anthropic node: User prompt is missing");
+  }
 
-      const openai = new OpenAI({
-        apiKey: process.env.NVIDIA_API_KEY,
-        baseURL: "https://integrate.api.nvidia.com/v1",
-      });
+  const systemPrompt = data.systemPrompt
+    ? Handlebars.compile(data.systemPrompt)(context)
+    : "You are a helpful assistant.";
+  const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-      const completion = await openai.chat.completions.create({
-        model: "moonshotai/kimi-k2-instruct",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.6,
-        top_p: 0.9,
-        max_tokens: 4096,
-      });
-
-      const responseText = completion.choices[0]?.message?.content || "";
-
-      return {
-        ...context,
-        [data.variableName]: responseText,
-      };
+  const credential = await step.run("get-credential", () => {
+    return prisma.credential.findUnique({
+      where: {
+        id: data.credentialId,
+        userId,
+      },
     });
+  });
 
+  if (!credential) {
+    await publish(
+      anthropicChannel().status({
+        nodeId,
+        status: "error",
+      })
+    );
+    throw new NonRetriableError("Anthropic node: Credential not found");
+  }
+
+  const anthropic = createAnthropic({
+    apiKey: decrypt(credential.value),
+  });
+
+  try {
+    const { steps } = await step.ai.wrap(
+      "anthropic-generate-text",
+      generateText,
+      {
+        model: anthropic("claude-sonnet-4-5"),
+        system: systemPrompt,
+        prompt: userPrompt,
+        experimental_telemetry: {
+          isEnabled: true,
+          recordInputs: true,
+          recordOutputs: true,
+        },
+      },
+    );
+
+    const text = 
+      steps[0].content[0].type === "text" 
+        ? steps[0].content[0].text
+        : "";
+    
     await publish(
       anthropicChannel().status({
         nodeId,
@@ -63,9 +122,14 @@ export const anthropicExecutor: NodeExecutor<AnthropicData> = async ({
       }),
     );
 
-    return result;
+    return {
+      ...context,
+      [data.variableName]: {
+        text,
+      },
+    }
   } catch (error) {
-    await publish(
+     await publish(
       anthropicChannel().status({
         nodeId,
         status: "error",

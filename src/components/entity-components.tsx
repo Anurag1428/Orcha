@@ -365,4 +365,4 @@ export const EntityItem = ({
       </Card>
     </Link>
   )
-};      
+};
