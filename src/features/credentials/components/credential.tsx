@@ -8,7 +8,6 @@ import {
   useUpdateCredential,
   useSuspenseCredential,
 } from "../hooks/use-credentials";
-import { useUpgradeModal } from "@/hooks/use-upgrade-modal";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
@@ -79,7 +78,6 @@ export const CredentialForm = ({
   const router = useRouter();
   const createCredential = useCreateCredential();
   const updateCredential = useUpdateCredential();
-  const { handleError, modal } = useUpgradeModal();
 
   const isEdit = !!initialData?.id;
 
@@ -103,16 +101,12 @@ export const CredentialForm = ({
         onSuccess: (data) => {
           router.push(`/credentials/${data.id}`);
         },
-        onError: (error) => {
-          handleError(error);
-        }
       })
     }
   }
 
   return (
     <>
-      {modal}
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle>
