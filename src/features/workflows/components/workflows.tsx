@@ -30,7 +30,7 @@ export const WorkflowsSearch = () => {
     <EntitySearch
       value={searchValue}
       onChange={onSearchChange}
-      placeholder="Search workflows"
+      placeholder="Search automations"
     />
   );
 };
@@ -63,10 +63,10 @@ export const WorkflowsHeader = ({ disabled }: { disabled?: boolean }) => {
   return (
     <>
       <EntityHeader
-        title="Workflows"
-        description="Create and manage your workflows"
+        title="My Automations"
+        description="Your automated tasks and processes"
         onNew={handleCreate}
-        newButtonLabel="New workflow"
+        newButtonLabel="New Automation"
         disabled={disabled}
         isCreating={createWorkflow.isPending}
       />
@@ -105,11 +105,11 @@ export const WorkflowsContainer = ({
 };
 
 export const WorkflowsLoading = () => {
-  return <LoadingView message="Loading workflows..." />;
+  return <LoadingView message="Loading your automations..." />;
 };
 
 export const WorkflowsError = () => {
-  return <ErrorView message="Error loading workflows" />;
+  return <ErrorView message="Error loading automations" />;
 };
 
 export const WorkflowsEmpty = () => {
@@ -128,7 +128,7 @@ export const WorkflowsEmpty = () => {
     <>
       <EmptyView
         onNew={handleCreate}
-        message="You haven't created any workflows yet. Get started by creating your first workflow"
+        message="No automations yet. Ask Orcha in chat to set one up for you, or create one manually!"
       />
     </>
   );

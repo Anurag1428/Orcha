@@ -1,11 +1,12 @@
 "use client";
 
 import {
-  CreditCardIcon,
-  FolderOpenIcon,
   HistoryIcon,
-  KeyIcon,
   LogOutIcon,
+  MessageCircleIcon,
+  PlugIcon,
+  ZapIcon,
+  LayoutDashboardIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -28,22 +29,32 @@ const menuItems = [
     title: "Main",
     items: [
       {
-        title: "Workflows",
-        icon: FolderOpenIcon,
+        title: "Ask Orcha",
+        icon: MessageCircleIcon,
+        url: "/chat",
+      },
+      {
+        title: "Overview",
+        icon: LayoutDashboardIcon,
+        url: "/overview",
+      },
+      {
+        title: "My Automations",
+        icon: ZapIcon,
         url: "/workflows",
       },
       {
-        title: "Credentials",
-        icon: KeyIcon,
+        title: "Connected Apps",
+        icon: PlugIcon,
         url: "/credentials",
       },
       {
-        title: "Executions",
+        title: "Activity Log",
         icon: HistoryIcon,
         url: "/executions",
       },
     ],
-  }
+  },
 ];
 
 export const AppSidebar = () => {
@@ -56,8 +67,8 @@ export const AppSidebar = () => {
         <SidebarMenuItem>
           <SidebarMenuButton asChild className="gap-x-4 h-10 px-4">
             <Link href="/" prefetch>
-              <Image src="/logos/logo.svg" alt="Nodebase" width={30} height={30} />
-              <span className="font-semibold text-sm">Nodebase</span>
+              <Image src="/logos/logo.svg" alt="Orcha" width={30} height={30} />
+              <span className="font-semibold text-sm">Orcha</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -74,7 +85,7 @@ export const AppSidebar = () => {
                       isActive={
                         item.url === "/"
                           ? pathname === "/"
-                          : pathname.startsWith(item.url)
+                          : pathname === item.url || pathname.startsWith(item.url)
                       }
                       asChild
                       className="gap-x-4 h-10 px-4"
@@ -97,13 +108,15 @@ export const AppSidebar = () => {
             <SidebarMenuButton
               tooltip="Sign out"
               className="gap-x-4 h-10 px-4"
-              onClick={() => authClient.signOut({
-                fetchOptions: {
-                  onSuccess: () => {
-                    router.push("/login");
+              onClick={() =>
+                authClient.signOut({
+                  fetchOptions: {
+                    onSuccess: () => {
+                      router.push("/login");
+                    },
                   },
-                },
-              })}
+                })
+              }
             >
               <LogOutIcon className="h-4 w-4" />
               <span>Sign out</span>
