@@ -26,6 +26,8 @@ model User {
   accounts      Account[]
   workflows     Workflow[]
   credentials   Credential[]
+  profile       UserProfile?
+  chatSessions  ChatSession[]
 
   @@unique([email])
   @@map("user")
@@ -94,6 +96,9 @@ enum CredentialType {
   OPENAI
   ANTHROPIC
   GEMINI
+  GMAIL
+  GOOGLE_CALENDAR
+  TAVILY
 }
 
 model Workflow {
@@ -105,6 +110,7 @@ model Workflow {
   nodes Node[]
   connections Connection[]
   executions Execution[]
+  scheduledWorkflow ScheduledWorkflow?
 
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -120,6 +126,7 @@ enum NodeType {
   OPENAI
   DISCORD
   SLACK
+  GMAIL
 }
 
 model Node {
@@ -183,4 +190,58 @@ model Execution {
   inngestEventId String @unique
 
   output Json?
+}
+
+model UserProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName    String?
+  timezone       String?  @default("Asia/Kolkata")
+  language       String?  @default("English")
+  context        Json     @default("{}")
+  onboardingDone Boolean  @default(false)
+  onboardingStep Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_profile")
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("chat_session")
+}
+
+model ChatMessage {
+  id          String      @id @default(cuid())
+  sessionId   String
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role        String
+  content     String      @db.Text
+  toolCalls   Json?
+  toolResults Json?
+  createdAt   DateTime    @default(now())
+
+  @@map("chat_message")
+}
+
+model ScheduledWorkflow {
+  id             String   @id @default(cuid())
+  workflowId     String   @unique
+  workflow       Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  cronExpression String
+  isActive       Boolean  @default(true)
+  nextRunAt      DateTime
+  lastRunAt      DateTime?
+  createdAt      DateTime @default(now())
+
+  @@map("scheduled_workflow")
 }
