@@ -1,6 +1,7 @@
 "use client";
 
 import { CredentialType } from "@/generated/prisma";
+import { ExternalLinkIcon } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { 
@@ -45,6 +46,8 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const OAUTH_TYPES = new Set<CredentialType>([CredentialType.GMAIL]);
+
 const credentialTypeOptions = [
   {
     value: CredentialType.OPENAI,
@@ -60,6 +63,11 @@ const credentialTypeOptions = [
     value: CredentialType.GEMINI,
     label: "Gemini",
     logo: "/logos/gemini.svg",
+  },
+  {
+    value: CredentialType.GMAIL,
+    label: "Gmail",
+    logo: "/logos/google.svg",
   },
 ];
 
@@ -173,23 +181,41 @@ export const CredentialForm = ({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="value"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>API Key</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="password" 
-                          placeholder="sk-..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {OAUTH_TYPES.has(form.watch("type")) ? (
+                  <div className="rounded-lg border border-dashed p-6 flex flex-col items-center gap-3 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Gmail uses OAuth — click below to securely connect your account.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      asChild
+                    >
+                      <Link href="/api/oauth/gmail/connect">
+                        <ExternalLinkIcon className="size-4 mr-2" />
+                        Connect with Google
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="value"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API Key</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="password" 
+                            placeholder="sk-..."
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <div className="flex gap-4">
                   <Button
