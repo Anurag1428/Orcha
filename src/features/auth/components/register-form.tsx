@@ -53,9 +53,10 @@ export function RegisterForm() {
   const signInGithub = async () => {
     await authClient.signIn.social({
       provider: "github",
+      callbackURL: "/chat",
     }, {
       onSuccess: () => {
-        router.push("/");
+        router.push("/chat");
       },
       onError: () => {
         toast.error("Something went wrong");
@@ -66,9 +67,10 @@ export function RegisterForm() {
   const signInGoogle = async () => {
     await authClient.signIn.social({
       provider: "google",
+      callbackURL: "/chat",
     }, {
       onSuccess: () => {
-        router.push("/");
+        router.push("/chat");
       },
       onError: () => {
         toast.error("Something went wrong");
@@ -82,11 +84,11 @@ export function RegisterForm() {
         name: values.email,
         email: values.email,
         password: values.password,
-        callbackURL: "/",
+        callbackURL: "/chat",
       },
       {
         onSuccess: () => {
-          router.push("/");
+          router.push("/chat");
         },
         onError: (ctx) => {
           toast.error(ctx.error.message);
