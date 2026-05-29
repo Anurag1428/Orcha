@@ -1,11 +1,11 @@
 import { DashboardOverview } from "@/features/dashboard/components/dashboard-overview";
 import { requireAuth } from "@/lib/auth-utils";
-import { HydrateClient, trpc } from "@/trpc/server";
+import { HydrateClient, trpc, prefetch } from "@/trpc/server";
 
 const Page = async () => {
   await requireAuth();
   
-  void trpc.dashboard.getOverviewStats.prefetch();
+  prefetch(trpc.dashboard.getOverviewStats.queryOptions());
 
   return (
     <HydrateClient>
