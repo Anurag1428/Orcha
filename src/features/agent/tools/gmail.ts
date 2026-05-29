@@ -27,11 +27,13 @@ export async function sendGmail(
 
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
+  const encodedSubject = `=?UTF-8?B?${Buffer.from(params.subject).toString("base64")}?=`;
+
   // Build the RFC 2822 email format
   const rawEmail = [
     `From: ${email}`,
     `To: ${params.to}`,
-    `Subject: ${params.subject}`,
+    `Subject: ${encodedSubject}`,
     `Content-Type: text/plain; charset=utf-8`,
     ``,
     params.body,

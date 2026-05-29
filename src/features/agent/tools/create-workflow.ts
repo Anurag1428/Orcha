@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { NodeType } from "@/generated/prisma";
-import { parseExpression } from "cron-parser";
+import cronParser from "cron-parser";
 
 const TYPE_MAP: Record<string, NodeType> = {
   ANTHROPIC: NodeType.ANTHROPIC,
@@ -61,7 +61,7 @@ export async function createWorkflowFromAgent(params: {
         name: step.type,
         type: TYPE_MAP[step.type] ?? NodeType.HTTP_REQUEST,
         position: { x: (i + 1) * 280, y: 0 },
-        data: step.config,
+        data: step.config as any,
       },
     });
   }
@@ -97,7 +97,7 @@ export async function createWorkflowFromAgent(params: {
 
   // Step F: Register cron if scheduled
   if (trigger.type === "SCHEDULE" && trigger.cron) {
-    const interval = parseExpression(trigger.cron);
+    const interval = cronParser.parse(trigger.cron);
     const nextRunAt = interval.next().toDate();
 
     await prisma.scheduledWorkflow.create({

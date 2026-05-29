@@ -99,6 +99,11 @@ export default function ChatPage() {
       });
 
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server error (${res.status})`);
+      }
+
       if (data.sessionId) setSessionId(data.sessionId);
 
       const agentMsg: Message = {
@@ -108,13 +113,14 @@ export default function ChatPage() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, agentMsg]);
-    } catch {
+    } catch (err: any) {
+      console.error("Chat error:", err);
       setMessages((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: "Something went wrong. Please try again.",
+          content: `Something went wrong: ${err.message || "Please try again."}`,
           timestamp: new Date(),
         },
       ]);

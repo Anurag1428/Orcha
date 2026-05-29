@@ -106,10 +106,11 @@ export const gmailExecutor: NodeExecutor<GmailData> = async ({
       const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
       // Build RFC 2822 email
+      const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`;
       const rawMessage = [
         `From: ${email}`,
         `To: ${to}`,
-        `Subject: ${subject}`,
+        `Subject: ${encodedSubject}`,
         `MIME-Version: 1.0`,
         `Content-Type: text/html; charset="UTF-8"`,
         ``,
