@@ -1,14 +1,15 @@
-import { NodeType } from "@/generated/prisma";
-import { NodeExecutor } from "../types";
-import { manualTriggerExecutor } from "@/features/triggers/components/manual-trigger/executor";
-import { httpRequestExecutor } from "../components/http-request/executor";
 import { googleFormTriggerExecutor } from "@/features/triggers/components/google-form-trigger/executor";
-import { geminiExecutor } from "../components/gemini/executor";
-import { openAiExecutor } from "../components/openai/executor";
+import { manualTriggerExecutor } from "@/features/triggers/components/manual-trigger/executor";
+import { NodeType } from "@/generated/prisma";
 import { anthropicExecutor } from "../components/anthropic/executor";
 import { discordExecutor } from "../components/discord/executor";
-import { slackExecutor } from "../components/slack/executor";
+import { forEachStartupExecutor } from "../components/for-each-startup/executor";
+import { geminiExecutor } from "../components/gemini/executor";
 import { gmailExecutor } from "../components/gmail/executor";
+import { httpRequestExecutor } from "../components/http-request/executor";
+import { openAiExecutor } from "../components/openai/executor";
+import { slackExecutor } from "../components/slack/executor";
+import type { NodeExecutor } from "../types";
 
 export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
@@ -21,6 +22,7 @@ export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.DISCORD]: discordExecutor,
   [NodeType.SLACK]: slackExecutor,
   [NodeType.GMAIL]: gmailExecutor,
+  [NodeType.FOR_EACH_STARTUP]: forEachStartupExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

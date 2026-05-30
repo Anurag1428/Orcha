@@ -53,11 +53,12 @@ async function runTest() {
     const { text, steps } = await generateText({
       model: kimi("moonshotai/kimi-k2.6"),
       prompt: "Hello",
-      maxSteps: 10,
+      stopWhen: stepCountIs(10),
       onStepFinish: (step) => {
-        console.log(`\n--- Step ${step.stepType} Finished ---`);
-        console.log(`Tools Called: ${step.toolCalls.length}`);
-        console.log(`Tool Results: ${step.toolResults.length}`);
+        console.log(`\n--- Step Finished ---`);
+        console.log(`Finish Reason: ${step.finishReason}`);
+        console.log(`Tools Called: ${step.toolCalls?.length || 0}`);
+        console.log(`Tool Results: ${step.toolResults?.length || 0}`);
       }
     });
 

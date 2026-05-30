@@ -1,24 +1,25 @@
 import { NonRetriableError } from "inngest";
-import { inngest } from "./client";
-import prisma from "@/lib/db";
-import { topologicalSort } from "./utils";
-import { ExecutionStatus, NodeType } from "@/generated/prisma";
 import { getExecutor } from "@/features/executions/lib/executor-registry";
-import { httpRequestChannel } from "./channels/http-request";
-import { manualTriggerChannel } from "./channels/manual-trigger";
-import { googleFormTriggerChannel } from "./channels/google-form-trigger";
-import { geminiChannel } from "./channels/gemini";
-import { openAiChannel } from "./channels/openai";
+import { ExecutionStatus, type NodeType } from "@/generated/prisma";
+import prisma from "@/lib/db";
 import { anthropicChannel } from "./channels/anthropic";
 import { discordChannel } from "./channels/discord";
-import { slackChannel } from "./channels/slack";
+import { forEachStartupChannel } from "./channels/for-each-startup";
+import { geminiChannel } from "./channels/gemini";
 import { gmailChannel } from "./channels/gmail";
+import { googleFormTriggerChannel } from "./channels/google-form-trigger";
+import { httpRequestChannel } from "./channels/http-request";
+import { manualTriggerChannel } from "./channels/manual-trigger";
+import { openAiChannel } from "./channels/openai";
+import { slackChannel } from "./channels/slack";
+import { inngest } from "./client";
+import { topologicalSort } from "./utils";
 
 export const executeWorkflow = inngest.createFunction(
-  { 
+  {
     id: "execute-workflow",
     retries: process.env.NODE_ENV === "production" ? 3 : 0,
-    onFailure: async ({ event, step }) => {
+    onFailure: async ({ event }) => {
       return prisma.execution.update({
         where: { inngestEventId: event.data.event.id },
         data: {
@@ -29,7 +30,7 @@ export const executeWorkflow = inngest.createFunction(
       });
     },
   },
-  { 
+  {
     event: "workflows/execute.workflow",
     channels: [
       httpRequestChannel(),
@@ -41,6 +42,7 @@ export const executeWorkflow = inngest.createFunction(
       discordChannel(),
       slackChannel(),
       gmailChannel(),
+      forEachStartupChannel(),
     ],
   },
   async ({ event, step, publish }) => {
@@ -51,7 +53,7 @@ export const executeWorkflow = inngest.createFunction(
       throw new NonRetriableError("Event ID or workflow ID is missing");
     }
 
-    await step.run("create-execution", async () => {
+    const parentExecution = await step.run("create-execution", async () => {
       return prisma.execution.create({
         data: {
           workflowId,
@@ -93,6 +95,9 @@ export const executeWorkflow = inngest.createFunction(
         data: node.data as Record<string, unknown>,
         nodeId: node.id,
         userId,
+        workflowId,
+        parentExecutionId: parentExecution.id,
+        parentInngestEventId: inngestEventId,
         context,
         step,
         publish,
@@ -107,7 +112,7 @@ export const executeWorkflow = inngest.createFunction(
           completedAt: new Date(),
           output: context,
         },
-      })
+      });
     });
 
     return {

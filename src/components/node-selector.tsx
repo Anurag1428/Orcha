@@ -2,10 +2,8 @@
 
 import { createId } from "@paralleldrive/cuid2";
 import { useReactFlow } from "@xyflow/react";
-import {
-  GlobeIcon,
-  MousePointerIcon,
-} from "lucide-react";
+import { GlobeIcon, ListTreeIcon, MousePointerIcon } from "lucide-react";
+import Image from "next/image";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -30,7 +28,8 @@ const triggerNodes: NodeTypeOption[] = [
   {
     type: NodeType.MANUAL_TRIGGER,
     label: "Trigger manually",
-    description: "Runs the flow on clicking a button. Good for getting started quickly",
+    description:
+      "Runs the flow on clicking a button. Good for getting started quickly",
     icon: MousePointerIcon,
   },
   {
@@ -47,6 +46,12 @@ const executionNodes: NodeTypeOption[] = [
     label: "HTTP Request",
     description: "Makes an HTTP request",
     icon: GlobeIcon,
+  },
+  {
+    type: NodeType.FOR_EACH_STARTUP,
+    label: "For Each Startup",
+    description: "Creates one child execution per startup",
+    icon: ListTreeIcon,
   },
   {
     type: NodeType.GEMINI,
@@ -80,77 +85,72 @@ const executionNodes: NodeTypeOption[] = [
   },
 ];
 
-
 interface NodeSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
-};
+}
 
 export function NodeSelector({
   open,
   onOpenChange,
-  children
+  children,
 }: NodeSelectorProps) {
   const { setNodes, getNodes, screenToFlowPosition } = useReactFlow();
 
-  const handleNodeSelect = useCallback((selection: NodeTypeOption) => {
-    // Check if trying to add a manual trigger when one already exists
-    if (selection.type === NodeType.MANUAL_TRIGGER) {
-      const nodes = getNodes();
-      const hasManualTrigger = nodes.some(
-        (node) => node.type === NodeType.MANUAL_TRIGGER,
-      );
+  const handleNodeSelect = useCallback(
+    (selection: NodeTypeOption) => {
+      // Check if trying to add a manual trigger when one already exists
+      if (selection.type === NodeType.MANUAL_TRIGGER) {
+        const nodes = getNodes();
+        const hasManualTrigger = nodes.some(
+          (node) => node.type === NodeType.MANUAL_TRIGGER,
+        );
 
-      if (hasManualTrigger) {
-        toast.error("Only one manual trigger is allowed per workflow");
-        return;
+        if (hasManualTrigger) {
+          toast.error("Only one manual trigger is allowed per workflow");
+          return;
+        }
       }
-    }
 
-    setNodes((nodes) => {
-      const hasInitialTrigger = nodes.some(
-        (node) => node.type === NodeType.INITIAL,
-      );
+      setNodes((nodes) => {
+        const hasInitialTrigger = nodes.some(
+          (node) => node.type === NodeType.INITIAL,
+        );
 
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
 
-      const flowPosition = screenToFlowPosition({
-        x: centerX + (Math.random() - 0.5) * 200,
-        y: centerY + (Math.random() - 0.5) * 200,
+        const flowPosition = screenToFlowPosition({
+          x: centerX + (Math.random() - 0.5) * 200,
+          y: centerY + (Math.random() - 0.5) * 200,
+        });
+
+        const newNode = {
+          id: createId(),
+          data: {},
+          position: flowPosition,
+          type: selection.type,
+        };
+
+        if (hasInitialTrigger) {
+          return [newNode];
+        }
+
+        return [...nodes, newNode];
       });
 
-      const newNode = {
-        id: createId(),
-        data: {},
-        position: flowPosition,
-        type: selection.type,
-      };
-
-      if (hasInitialTrigger) {
-        return [newNode];
-      }
-
-      return [...nodes, newNode];
-    });
-
-    onOpenChange(false);
-  }, [
-    setNodes,
-    getNodes,
-    onOpenChange,
-    screenToFlowPosition,
-  ]);
+      onOpenChange(false);
+    },
+    [setNodes, getNodes, onOpenChange, screenToFlowPosition],
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>{children}</SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>
-            What triggers this workflow?
-          </SheetTitle>
+          <SheetTitle>What triggers this workflow?</SheetTitle>
           <SheetDescription>
             A trigger is a step that starts your workflow.
           </SheetDescription>
@@ -160,16 +160,19 @@ export function NodeSelector({
             const Icon = nodeType.icon;
 
             return (
-              <div
+              <button
+                type="button"
                 key={nodeType.type}
-                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary bg-transparent"
                 onClick={() => handleNodeSelect(nodeType)}
               >
                 <div className="flex items-center gap-6 w-full overflow-hidden">
                   {typeof Icon === "string" ? (
-                    <img
+                    <Image
                       src={Icon}
                       alt={nodeType.label}
+                      width={20}
+                      height={20}
                       className="size-5 object-contain rounded-sm"
                     />
                   ) : (
@@ -184,8 +187,8 @@ export function NodeSelector({
                     </span>
                   </div>
                 </div>
-              </div>
-            )
+              </button>
+            );
           })}
         </div>
         <Separator />
@@ -194,16 +197,19 @@ export function NodeSelector({
             const Icon = nodeType.icon;
 
             return (
-              <div
+              <button
+                type="button"
                 key={nodeType.type}
-                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary bg-transparent"
                 onClick={() => handleNodeSelect(nodeType)}
               >
                 <div className="flex items-center gap-6 w-full overflow-hidden">
                   {typeof Icon === "string" ? (
-                    <img
+                    <Image
                       src={Icon}
                       alt={nodeType.label}
+                      width={20}
+                      height={20}
                       className="size-5 object-contain rounded-sm"
                     />
                   ) : (
@@ -218,11 +224,11 @@ export function NodeSelector({
                     </span>
                   </div>
                 </div>
-              </div>
-            )
+              </button>
+            );
           })}
         </div>
       </SheetContent>
     </Sheet>
   );
-};
+}

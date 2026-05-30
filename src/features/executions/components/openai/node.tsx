@@ -13,6 +13,8 @@ type OpenAiNodeData = {
   credentialId?: string;
   systemPrompt?: string;
   userPrompt?: string;
+  model?: string;
+  baseURL?: string;
 };
 
 type OpenAiNodeType = Node<OpenAiNodeData>;

@@ -110,6 +110,7 @@ model Workflow {
   nodes Node[]
   connections Connection[]
   executions Execution[]
+  fundingPosts FundingPost[]
   scheduledWorkflow ScheduledWorkflow?
 
   userId String
@@ -127,6 +128,7 @@ enum NodeType {
   DISCORD
   SLACK
   GMAIL
+  FOR_EACH_STARTUP
 }
 
 model Node {
@@ -180,6 +182,13 @@ model Execution {
   workflowId String
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
+  parentExecutionId String?
+  parentExecution Execution? @relation("ExecutionChildren", fields: [parentExecutionId], references: [id], onDelete: Cascade)
+  childExecutions Execution[] @relation("ExecutionChildren")
+
+  startupLeadId String?
+  startupLead StartupLead? @relation(fields: [startupLeadId], references: [id], onDelete: SetNull)
+
   status ExecutionStatus @default(RUNNING)
   error String? @db.Text
   errorStack String? @db.Text
@@ -190,6 +199,93 @@ model Execution {
   inngestEventId String @unique
 
   output Json?
+
+  fundingPosts FundingPost[]
+  outreachAttempt OutreachAttempt?
+}
+
+model FundingPost {
+  id String @id @default(cuid())
+
+  workflowId String
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  parentExecutionId String?
+  parentExecution Execution? @relation(fields: [parentExecutionId], references: [id], onDelete: SetNull)
+
+  sourceUrl String?
+  postText String? @db.Text
+  imageUrl String?
+  rawInput Json?
+
+  startupLeads StartupLead[]
+  outreachAttempts OutreachAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workflowId])
+  @@index([parentExecutionId])
+  @@map("funding_post")
+}
+
+model StartupLead {
+  id String @id @default(cuid())
+
+  fundingPostId String
+  fundingPost FundingPost @relation(fields: [fundingPostId], references: [id], onDelete: Cascade)
+
+  startup String
+  startupKey String
+  funding String?
+  sector String?
+  rank Int?
+  source String?
+  status String @default("CREATED")
+  state Json @default("{}")
+  raw Json?
+
+  executions Execution[]
+  outreachAttempts OutreachAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([fundingPostId, startupKey])
+  @@index([startupKey])
+  @@map("startup_lead")
+}
+
+model OutreachAttempt {
+  id String @id @default(cuid())
+
+  fundingPostId String
+  fundingPost FundingPost @relation(fields: [fundingPostId], references: [id], onDelete: Cascade)
+
+  startupLeadId String
+  startupLead StartupLead @relation(fields: [startupLeadId], references: [id], onDelete: Cascade)
+
+  executionId String? @unique
+  execution Execution? @relation(fields: [executionId], references: [id], onDelete: SetNull)
+
+  status String @default("CREATED")
+  searchCount Int @default(0)
+  founder String?
+  linkedin String?
+  domain String?
+  email String?
+  verified Boolean?
+  output Json?
+  error String? @db.Text
+
+  startedAt DateTime?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fundingPostId])
+  @@index([startupLeadId])
+  @@map("outreach_attempt")
 }
 
 model UserProfile {

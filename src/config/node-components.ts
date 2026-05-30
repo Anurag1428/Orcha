@@ -1,16 +1,16 @@
-import { InitialNode } from "@/components/initial-node";
-import { NodeType } from "@/generated/prisma";
 import type { NodeTypes } from "@xyflow/react";
-
-import { HttpRequestNode } from "@/features/executions/components/http-request/node";
-import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger/node";
-import { GoogleFormTrigger } from "@/features/triggers/components/google-form-trigger/node";
-import { GeminiNode } from "@/features/executions/components/gemini/node";
-import { OpenAiNode } from "@/features/executions/components/openai/node";
+import { InitialNode } from "@/components/initial-node";
 import { AnthropicNode } from "@/features/executions/components/anthropic/node";
 import { DiscordNode } from "@/features/executions/components/discord/node";
-import { SlackNode } from "@/features/executions/components/slack/node";
+import { ForEachStartupNode } from "@/features/executions/components/for-each-startup/node";
+import { GeminiNode } from "@/features/executions/components/gemini/node";
 import { GmailNode } from "@/features/executions/components/gmail/node";
+import { HttpRequestNode } from "@/features/executions/components/http-request/node";
+import { OpenAiNode } from "@/features/executions/components/openai/node";
+import { SlackNode } from "@/features/executions/components/slack/node";
+import { GoogleFormTrigger } from "@/features/triggers/components/google-form-trigger/node";
+import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger/node";
+import { NodeType } from "@/generated/prisma";
 
 export const nodeComponents = {
   [NodeType.INITIAL]: InitialNode,
@@ -23,6 +23,7 @@ export const nodeComponents = {
   [NodeType.DISCORD]: DiscordNode,
   [NodeType.SLACK]: SlackNode,
   [NodeType.GMAIL]: GmailNode,
+  [NodeType.FOR_EACH_STARTUP]: ForEachStartupNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeType = keyof typeof nodeComponents;

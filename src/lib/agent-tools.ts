@@ -15,8 +15,7 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "send_email",
-    description:
-      "Send an email from the user's Gmail account on their behalf.",
+    description: "Send an email from the user's Gmail account on their behalf.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -40,7 +39,8 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
       properties: {
         key: {
           type: "string",
-          description: "Label for the info e.g. university, professorEmail, studentId",
+          description:
+            "Label for the info e.g. university, professorEmail, studentId",
         },
         value: {
           type: "string",
@@ -97,7 +97,8 @@ The workflow is saved to DB and registered with the execution engine.`,
             },
             cron: {
               type: "string",
-              description: "Cron expression for SCHEDULE trigger e.g. 0 9 * * MON",
+              description:
+                "Cron expression for SCHEDULE trigger e.g. 0 9 * * MON",
             },
             formId: {
               type: "string",
@@ -125,12 +126,14 @@ The workflow is saved to DB and registered with the execution engine.`,
                   "DISCORD",
                   "HTTP_REQUEST",
                   "GMAIL",
+                  "FOR_EACH_STARTUP",
                 ],
               },
               dependsOn: {
                 type: "array",
                 items: { type: "string" },
-                description: "Step IDs that must complete before this step runs",
+                description:
+                  "Step IDs that must complete before this step runs",
               },
               config: {
                 type: "object",
@@ -141,7 +144,8 @@ SLACK: { variableName, webhookUrl, content }
 content can use {{prevStep.text}}
 GMAIL: { variableName, credentialId, to, subject, body }
 body can use {{prevStep.text}}
-HTTP_REQUEST: { variableName, url, method, body }`,
+HTTP_REQUEST: { variableName, url, method, body }
+FOR_EACH_STARTUP: { variableName, startupsPath, startupsJson?, sourceUrl?, postText?, imageUrl?, openaiCredentialId?, gmailCredentialId, senderName?, senderContext?, testEmail?, liveMode? }`,
               },
             },
             required: ["id", "type", "config"],
@@ -149,7 +153,8 @@ HTTP_REQUEST: { variableName, url, method, body }`,
         },
         runNow: {
           type: "boolean",
-          description: "true = execute immediately after saving. false = wait for trigger.",
+          description:
+            "true = execute immediately after saving. false = wait for trigger.",
         },
       },
       required: ["name", "trigger", "steps"],
