@@ -45,6 +45,8 @@ const formSchema = z.object({
   credentialId: z.string().min(1, "Credential is required"),
   systemPrompt: z.string().optional(),
   userPrompt: z.string().min(1, "User prompt is required"),
+  model: z.string().optional(),
+  baseURL: z.string().optional(),
 });
 
 export type OpenAiFormValues = z.infer<typeof formSchema>;
@@ -74,6 +76,8 @@ export const OpenAiDialog = ({
       credentialId: defaultValues.credentialId || "",
       systemPrompt: defaultValues.systemPrompt || "",
       userPrompt: defaultValues.userPrompt || "",
+      model: defaultValues.model || "gpt-4",
+      baseURL: defaultValues.baseURL || "",
     },
   });
 
@@ -85,6 +89,8 @@ export const OpenAiDialog = ({
         credentialId: defaultValues.credentialId || "",
         systemPrompt: defaultValues.systemPrompt || "",
         userPrompt: defaultValues.userPrompt || "",
+        model: defaultValues.model || "gpt-4",
+        baseURL: defaultValues.baseURL || "",
       });
     }
   }, [open, defaultValues, form]);
@@ -213,6 +219,46 @@ export const OpenAiDialog = ({
                 <FormMessage />
               </FormItem>
             )}
+            />
+
+            <FormField
+              control={form.control}
+              name="model"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Model (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="gpt-4"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    The model to use. Defaults to gpt-4. E.g. deepseek-ai/deepseek-v4-pro
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="baseURL"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Base URL (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://api.openai.com/v1"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Custom API endpoint (e.g. for NVIDIA NIM use https://integrate.api.nvidia.com/v1)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
             <DialogFooter className="mt-4">
               <Button type="submit">Save</Button>

@@ -19,6 +19,8 @@ type OpenAiData = {
   credentialId?: string;
   systemPrompt?: string;
   userPrompt?: string;
+  model?: string;
+  baseURL?: string;
 };
 
 export const openAiExecutor: NodeExecutor<OpenAiData> = async ({
@@ -92,14 +94,26 @@ export const openAiExecutor: NodeExecutor<OpenAiData> = async ({
 
   const openai = createOpenAI({
     apiKey: decrypt(credential.value),
+    baseURL: data.baseURL || undefined,
   });
 
   try {
+    const selectedModel = data.model || "gpt-4";
+    if (selectedModel.includes("flash")) {
+      console.log(`[Extraction Model] Executing with ${selectedModel}`);
+    } else if (selectedModel.includes("pro")) {
+      console.log(`[Reasoning Model] Executing with ${selectedModel}`);
+    } else if (selectedModel.includes("nemotron")) {
+      console.log(`[Fallback Model] Executing with ${selectedModel}`);
+    } else {
+      console.log(`[OpenAI Model] Executing with ${selectedModel}`);
+    }
+
     const { steps } = await step.ai.wrap(
       "openai-generate-text",
       generateText,
       {
-        model: openai("gpt-4"),
+        model: openai(selectedModel),
         system: systemPrompt,
         prompt: userPrompt,
         experimental_telemetry: {

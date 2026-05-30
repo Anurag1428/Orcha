@@ -1,6 +1,6 @@
-import prisma from "@/lib/db";
-import { NodeType } from "@/generated/prisma";
 import cronParser from "cron-parser";
+import { NodeType, type Prisma } from "@/generated/prisma";
+import prisma from "@/lib/db";
 
 const TYPE_MAP: Record<string, NodeType> = {
   ANTHROPIC: NodeType.ANTHROPIC,
@@ -10,6 +10,7 @@ const TYPE_MAP: Record<string, NodeType> = {
   DISCORD: NodeType.DISCORD,
   HTTP_REQUEST: NodeType.HTTP_REQUEST,
   GMAIL: NodeType.GMAIL,
+  FOR_EACH_STARTUP: NodeType.FOR_EACH_STARTUP,
 };
 
 export async function createWorkflowFromAgent(params: {
@@ -61,13 +62,15 @@ export async function createWorkflowFromAgent(params: {
         name: step.type,
         type: TYPE_MAP[step.type] ?? NodeType.HTTP_REQUEST,
         position: { x: (i + 1) * 280, y: 0 },
-        data: step.config as any,
+        data: step.config as Prisma.InputJsonValue,
       },
     });
   }
 
   // Step D: Create connections between nodes
-  const rootSteps = steps.filter((s) => !s.dependsOn || s.dependsOn.length === 0);
+  const rootSteps = steps.filter(
+    (s) => !s.dependsOn || s.dependsOn.length === 0,
+  );
   for (const rootStep of rootSteps) {
     await prisma.connection.create({
       data: {
