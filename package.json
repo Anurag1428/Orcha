@@ -17,6 +17,7 @@
     "@ai-sdk/google": "^2.0.31",
     "@ai-sdk/mistral": "^2.0.33",
     "@ai-sdk/openai": "^2.0.65",
+    "@ai-sdk/react": "^3.0.195",
     "@anthropic-ai/sdk": "^0.91.1",
     "@hookform/resolvers": "^5.2.2",
     "@inngest/realtime": "^0.4.6",
