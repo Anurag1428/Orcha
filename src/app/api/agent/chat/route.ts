@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -8,22 +10,60 @@ import { rememberFact, getProfile, getCredentials } from "@/features/agent/tools
 import { createWorkflowFromAgent } from "@/features/agent/tools/create-workflow";
 import { searchApollo } from "@/features/agent/tools/apollo";
 import { AGENT_SYSTEM_PROMPT } from "@/lib/agent-prompt";
-import { generateText, tool, stepCountIs } from "ai";
+import { streamText, tool } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createMistral } from "@ai-sdk/mistral";
 import { z } from "zod";
 
 /**
- * Returns the primary model: Kimi (moonshotai/kimi-k2.6)
+ * Returns the primary model: NVIDIA Nemotron 3 Super 120B A12B
  */
 const getPrimaryModel = () => {
-  const kimiApiKey = process.env.KIMI_API_KEY || "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";
+  // TEMPORARILY DISABLED:
+  // Kimi endpoint is currently experiencing severe timeout issues
+  // (5+ minute hangs and 504 Gateway Timeout responses).
   
-  const kimi = createOpenAI({
+  // const kimiApiKey = process.env.KIMI_API_KEY || "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";
+  // 
+  // const kimi = createOpenAI({
+  //   baseURL: "https://integrate.api.nvidia.com/v1",
+  //   apiKey: kimiApiKey,
+  //   compatibility: "compatible",
+  //   fetch: async (url, options) => {
+  //     const fixedUrl = url.toString().replace('/responses', '/chat/completions');
+  //     return fetch(fixedUrl, options);
+  //   }
+  // });
+  // return kimi("moonshotai/kimi-k2.6");
+
+  const nvidiaApiKey = process.env.NVIDIA_API_KEY || "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";
+  
+  const nemotron = createOpenAI({
     baseURL: "https://integrate.api.nvidia.com/v1",
-    apiKey: kimiApiKey,
+    apiKey: nvidiaApiKey,
+    compatibility: "compatible",
+    fetch: async (url, options) => {
+      const res = await fetch(url, options);
+      if (res.body) {
+        const [stream1, stream2] = res.body.tee();
+        (async () => {
+          const reader = stream2.getReader();
+          const decoder = new TextDecoder();
+          let chunkIndex = 1;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const text = decoder.decode(value, { stream: true });
+            console.log(`[RAW NVIDIA] Chunk ${chunkIndex} | Time: ${Date.now()} | Length: ${text.length} | Preview: ${text.replace(/\n/g, '\\n').slice(0, 100)}`);
+            chunkIndex++;
+          }
+        })();
+        return new Response(stream1, { status: res.status, headers: res.headers });
+      }
+      return res;
+    }
   });
-  return kimi.chat("moonshotai/kimi-k2.6");
+  return nemotron.chat("nvidia/nemotron-3-super-120b-a12b");
 };
 
 /**
@@ -32,22 +72,51 @@ const getPrimaryModel = () => {
 const getFallbackModel = () => {
   const mistralApiKey = process.env.MISTRAL_API_KEY;
   if (!mistralApiKey) throw new Error("MISTRAL_API_KEY is not set in environment variables.");
-  const mistral = createMistral({ apiKey: mistralApiKey });
+  const mistral = createMistral({ 
+    apiKey: mistralApiKey,
+    fetch: async (url, options) => {
+      const res = await fetch(url, options);
+      if (res.body) {
+        const [stream1, stream2] = res.body.tee();
+        (async () => {
+          const reader = stream2.getReader();
+          const decoder = new TextDecoder();
+          let chunkIndex = 1;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const text = decoder.decode(value, { stream: true });
+            console.log(`[RAW MISTRAL] Chunk ${chunkIndex} | Time: ${Date.now()} | Length: ${text.length} | Preview: ${text.replace(/\n/g, '\\n').slice(0, 100)}`);
+            chunkIndex++;
+          }
+        })();
+        return new Response(stream1, { status: res.status, headers: res.headers });
+      }
+      return res;
+    }
+  });
   return mistral("mistral-large-latest");
 };
 
 export async function POST(req: NextRequest) {
+  const globalStart = performance.now();
+  console.log("\n[Profiler] === NEW REQUEST START ===");
+
   // 1. Auth check
+  let tStart = performance.now();
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return new Response("Unauthorized", { status: 401 });
-
   const userId = session.user.id;
   const { message, sessionId } = await req.json();
+  console.log(`[Profiler] Auth check & JSON parse: ${((performance.now() - tStart)).toFixed(2)}ms`);
 
   // 2. Load user profile
+  tStart = performance.now();
   const profile = await prisma.userProfile.findUnique({ where: { userId } });
+  console.log(`[Profiler] DB Load User Profile: ${((performance.now() - tStart)).toFixed(2)}ms`);
 
   // 3. Load last 10 messages for conversation context
+  tStart = performance.now();
   let history: Array<{ role: "user" | "assistant"; content: string }> = [];
   if (sessionId) {
     const msgs = await prisma.chatMessage.findMany({
@@ -61,12 +130,15 @@ export async function POST(req: NextRequest) {
       content: m.content,
     }));
   }
+  console.log(`[Profiler] DB Load Chat History: ${((performance.now() - tStart)).toFixed(2)}ms`);
 
   // 4. Build system prompt with user's profile
+  tStart = performance.now();
   const systemPrompt = AGENT_SYSTEM_PROMPT
     .replace("{{USER_NAME}}", session.user.name ?? "there")
     .replace("{{USER_PROFILE}}", JSON.stringify(profile?.context ?? {})) +
-    `\n\nIMPORTANT: The current date and time is ${new Date().toLocaleString()}. Always use this as your reference for "today", "yesterday", "last 4 days", etc.`;
+    `\n\nIMPORTANT: The current date and time is ${new Date().toLocaleString()}. Always use this as your reference for "today", "yesterday", "last 4 days", etc.` +
+    `\n\nCRITICAL RULE: If you run a tool and do not find the information you need, or if you finish your entire workflow, YOU MUST ALWAYS GENERATE A FINAL TEXT RESPONSE EXPLAINING WHAT HAPPENED. Never leave your response blank.`;
 
   // 5. Build messages array for AI SDK
   const coreMessages = [
@@ -76,8 +148,10 @@ export async function POST(req: NextRequest) {
     })),
     { role: "user" as const, content: message },
   ];
+  console.log(`[Profiler] Build Prompts & Messages: ${((performance.now() - tStart)).toFixed(2)}ms`);
 
   // 6. Define agent tools (all tools in one place)
+  tStart = performance.now();
   const agentTools = {
     web_search: tool({
       description:
@@ -209,48 +283,9 @@ export async function POST(req: NextRequest) {
       },
     }),
   };
+  console.log(`[Profiler] Tool Registration: ${((performance.now() - tStart)).toFixed(2)}ms`);
 
   try {
-    let textResult;
-
-    // 7. Try Kimi first (primary model)
-    try {
-      console.log("[Agent] Using primary model: Kimi-k2.6");
-      const primaryModel = getPrimaryModel();
-      textResult = await generateText({
-        model: primaryModel,
-        system: systemPrompt,
-        messages: coreMessages,
-        stopWhen: stepCountIs(10),
-        tools: agentTools,
-        maxRetries: 0,
-        abortSignal: AbortSignal.timeout(10000),
-      });
-    } catch (primaryError: any) {
-      // 8. Kimi failed — immediately fallback to Mistral
-      console.warn(
-        "[Agent] Kimi failed. Falling back to Mistral. Error:",
-        primaryError.message
-      );
-      try {
-        const fallbackModel = getFallbackModel();
-        textResult = await generateText({
-          model: fallbackModel,
-          system: systemPrompt,
-          messages: coreMessages,
-          stopWhen: stepCountIs(10),
-          tools: agentTools,
-          maxRetries: 0,
-        });
-      } catch (mistralError: any) {
-        console.error("[Agent] Mistral fallback also failed:", mistralError.message);
-        throw mistralError;
-      }
-    }
-
-    const { text: finalText } = textResult;
-
-    // 9. Save session + messages to DB
     let activeSessionId = sessionId;
     if (!activeSessionId) {
       const newSession = await prisma.chatSession.create({
@@ -262,28 +297,64 @@ export async function POST(req: NextRequest) {
       activeSessionId = newSession.id;
     }
 
-    await prisma.chatMessage.createMany({
-      data: [
-        { sessionId: activeSessionId, role: "user", content: message },
-        { sessionId: activeSessionId, role: "assistant", content: finalText },
-      ],
+    console.log("[Agent] Primary model: NVIDIA Nemotron 3 Super 120B A12B");
+    const activeModel = getPrimaryModel();
+
+      console.log("[Agent] Invoking streamText");
+            const result = streamText({
+        model: activeModel,
+        system: systemPrompt,
+        messages: coreMessages,
+        // Use providerOptions.gateway for automatic fallback to Mistral model
+        providerOptions: {
+          gateway: {
+            models: [
+              "nvidia/nemotron-3-super-120b-a12b",
+              "mistral-large-latest"
+            ]
+          }
+        },
+
+        maxTokens: 1024,
+        maxSteps: 20,
+
+
+
+        tools: agentTools,
+        maxRetries: 0,
+        // Log each chunk for debugging and ensure we always have output
+        onChunk: (chunk) => {
+          console.log(`[Streamer] Chunk received: ${JSON.stringify(chunk)}`);
+        },
+        onFinish: async ({ text }) => {
+          // Ensure we have a non‑empty response; provide a fallback if needed
+          const finalText = text && text.trim().length > 0 ? text : "[No response generated]";
+          const tStart = performance.now();
+          console.log(`[Streamer] Finished with ${finalText.length} characters`);
+          await prisma.chatMessage.createMany({
+            data: [
+              { sessionId: activeSessionId, role: "user", content: message },
+              { sessionId: activeSessionId, role: "assistant", content: finalText },
+            ],
+          });
+          if (profile && !profile.onboardingDone) {
+            const ctx = profile.context as Record<string, string>;
+            if (ctx.name && ctx.email) {
+              await prisma.userProfile.update({ where: { userId }, data: { onboardingDone: true } });
+            }
+          }
+          console.log(`[Profiler] DB Message Persistence (onFinish): ${((performance.now() - tStart)).toFixed(2)}ms`);
+          console.log(`[Profiler] === TOTAL REQUEST TIME: ${((performance.now() - globalStart) / 1000).toFixed(2)}s ===\n`);
+        },
+      });
+
+    // Return a data stream response that useChat can consume, including tool invocations
+    return result.toUIMessageStreamResponse({
+      headers: {
+        "x-session-id": activeSessionId,
+      },
     });
 
-    // 10. Mark onboarding done if profile is filled
-    if (profile && !profile.onboardingDone) {
-      const ctx = profile.context as Record<string, string>;
-      if (ctx.name && ctx.email) {
-        await prisma.userProfile.update({
-          where: { userId },
-          data: { onboardingDone: true },
-        });
-      }
-    }
-
-    return Response.json({
-      reply: finalText,
-      sessionId: activeSessionId,
-    });
   } catch (error: any) {
     console.error("Agent Chat Error:", error);
     return Response.json(
